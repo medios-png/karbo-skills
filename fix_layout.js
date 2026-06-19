@@ -1,4 +1,6 @@
-import { Geist, Geist_Mono } from "next/font/google";
+const fs = require('fs');
+
+const content = `import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/hooks/useAuth";
 
@@ -21,7 +23,7 @@ export default function RootLayout({ children }) {
   return (
     <html
       lang="es"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={\`\${geistSans.variable} \${geistMono.variable} h-full antialiased\`}
     >
       <body className="min-h-full flex flex-col">
         <AuthProvider>{children}</AuthProvider>
@@ -29,3 +31,7 @@ export default function RootLayout({ children }) {
     </html>
   );
 }
+`;
+
+fs.writeFileSync('app/layout.js', content, 'utf8');
+console.log('app/layout.js actualizado, longitud:', content.length);
