@@ -39,9 +39,10 @@ export default function DashboardPage() {
       { href: '/diagnostico-supervisor', titulo: 'Diagnosticar a tu equipo', descripcion: 'Tu observación sobre cada colaborador.' },
       { href: '/instructivos', titulo: 'Instructivos por tarea', descripcion: 'Contenido de referencia para la IA.' },
     ],
-    colaborador: [
+colaborador: [
       { href: '/diagnostico', titulo: 'Mi diagnóstico', descripcion: 'Cómo haces hoy las tareas de tu cargo.' },
       { href: '/resultado', titulo: 'Mi Índice de Claridad de Rol', descripcion: 'El cruce entre tu mirada y la de tu supervisor.' },
+      { href: '/mapa-dominio', titulo: 'Mapa de Dominio', descripcion: 'Tus tareas críticas, agrupadas por nivel.' },
     ],
   };
 
