@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useAuth } from '@/hooks/useAuth';
@@ -29,6 +30,23 @@ export default function DashboardPage() {
     );
   }
 
+  const enlacesPorRol = {
+    admin: [
+      { href: '/admin', titulo: 'Panel Admin', descripcion: 'Organizaciones, equipos y cargos.' },
+      { href: '/instructivos', titulo: 'Instructivos por tarea', descripcion: 'Contenido de referencia para la IA.' },
+    ],
+    supervisor: [
+      { href: '/diagnostico-supervisor', titulo: 'Diagnosticar a tu equipo', descripcion: 'Tu observación sobre cada colaborador.' },
+      { href: '/instructivos', titulo: 'Instructivos por tarea', descripcion: 'Contenido de referencia para la IA.' },
+    ],
+    colaborador: [
+      { href: '/diagnostico', titulo: 'Mi diagnóstico', descripcion: 'Cómo haces hoy las tareas de tu cargo.' },
+      { href: '/resultado', titulo: 'Mi Índice de Claridad de Rol', descripcion: 'El cruce entre tu mirada y la de tu supervisor.' },
+    ],
+  };
+
+  const enlaces = enlacesPorRol[usuario.rol] || [];
+
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       <header className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
@@ -48,26 +66,21 @@ export default function DashboardPage() {
       </header>
 
       <main className="p-6">
-        {usuario.rol === 'admin' && (
-          <div>
-            <h2 className="text-xl font-semibold mb-2">Panel Admin</h2>
-            <p className="text-gray-400">Próximamente: cargos, equipos, usuarios.</p>
-          </div>
-        )}
-        {usuario.rol === 'supervisor' && (
-          <div>
-            <h2 className="text-xl font-semibold mb-2">Tu equipo</h2>
-            <p className="text-gray-400">Próximamente: diagnóstico, revisiones mensuales.</p>
-          </div>
-        )}
-        {usuario.rol === 'colaborador' && (
-          <div>
-            <h2 className="text-xl font-semibold mb-2">Tu desarrollo</h2>
-            <p className="text-gray-400">Próximamente: diagnóstico, plan de aprendizaje.</p>
-          </div>
-        )}
-        {!['admin', 'supervisor', 'colaborador'].includes(usuario.rol) && (
+        {enlaces.length === 0 ? (
           <p className="text-amber-500">Tu usuario no tiene un rol válido asignado. Contacta al administrador.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
+            {enlaces.map((e) => (
+              <Link
+                key={e.href}
+                href={e.href}
+                className="block bg-gray-900 border border-gray-800 hover:border-blue-600 rounded-lg p-4 transition"
+              >
+                <p className="font-semibold mb-1">{e.titulo}</p>
+                <p className="text-sm text-gray-500">{e.descripcion}</p>
+              </Link>
+            ))}
+          </div>
         )}
       </main>
     </div>
