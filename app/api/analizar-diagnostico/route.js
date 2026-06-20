@@ -2,7 +2,11 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request) {
   try {
-    const { cargoNombre, tareasPersona, tareasSupervisor } = await request.json();
+    const { cargoNombre, tareasPersona, tareasSupervisor, instructivos } = await request.json();
+
+    const seccionInstructivos = instructivos && instructivos.length > 0
+      ? `\n\nInstructivos de referencia para algunas tareas (cómo se supone que se hacen bien, según la empresa):\n${JSON.stringify(instructivos, null, 2)}`
+      : '';
 
     const prompt = `Eres un consultor de desarrollo organizacional analizando un diagnóstico doble de rol para el cargo "${cargoNombre}".
 
@@ -10,7 +14,7 @@ Respuestas de autopercepción (la persona evaluándose a sí misma):
 ${JSON.stringify(tareasPersona, null, 2)}
 
 Respuestas de observación del supervisor (sobre la misma persona):
-${JSON.stringify(tareasSupervisor, null, 2)}
+${JSON.stringify(tareasSupervisor, null, 2)}${seccionInstructivos}
 
 Cada respuesta tiene: tareaNombre, nivelDominio (1-5, donde 5 es dominio completo), y comentario.
 
@@ -22,7 +26,7 @@ Analiza ambas miradas y responde SOLO con un objeto JSON (sin texto adicional, s
   "recomendaciones": [ "...", "..." ]
 }
 
-Importante: el lenguaje debe sentirse constructivo, no punitivo — esto es para armar un plan de aprendizaje, no para evaluar con intención de castigo. Las brechas divergentes son señal de conversación pendiente entre la persona y su supervisor, no de "quién tiene razón". Responde en español.`;
+Importante: si hay un instructivo de referencia para una tarea, compara lo que la persona y el supervisor dijeron contra ESE instructivo específico, no contra buenas prácticas genéricas — tus recomendaciones deben citar pasos concretos del instructivo cuando exista uno. Si no hay instructivo para una tarea, ahí sí puedes dar una recomendación general. El lenguaje debe sentirse constructivo, no punitivo, esto es para armar un plan de aprendizaje. Responde en español.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',

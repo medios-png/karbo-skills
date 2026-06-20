@@ -64,8 +64,20 @@ export default function ResultadoPage() {
       }
 
       const cargoSnap = await getDoc(doc(db, 'cargos', usuario.cargoId));
-      const nombreCargo = cargoSnap.exists() ? cargoSnap.data().nombre : '';
+      const cargoData = cargoSnap.exists() ? cargoSnap.data() : {};
+      const nombreCargo = cargoData.nombre || '';
       setCargoNombre(nombreCargo);
+
+      const tareas = cargoData.tareasCriticas || [];
+      const instructivosSnap = await Promise.all(
+        tareas.map((t) => getDoc(doc(db, 'contenidoAprendizaje', `${usuario.cargoId}_${t.id}`)))
+      );
+      const instructivos = tareas
+        .map((t, i) => ({
+          tareaNombre: t.nombre,
+          instructivo: instructivosSnap[i].exists() ? instructivosSnap[i].data().texto : null,
+        }))
+        .filter((x) => x.instructivo);
 
       setEstado('generando');
 
@@ -77,6 +89,7 @@ export default function ResultadoPage() {
             cargoNombre: nombreCargo,
             tareasPersona: snapPersona.docs[0].data().respuestas,
             tareasSupervisor: snapSupervisor.docs[0].data().respuestas,
+            instructivos,
           }),
         });
 
