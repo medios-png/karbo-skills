@@ -19,6 +19,7 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '@/hooks/useAuth';
 
 const NIVELES = ['operativo', 'tactico', 'estrategico'];
+const generarId = () => Math.random().toString(36).slice(2, 10);
 
 export default function AdminPage() {
   const router = useRouter();
@@ -42,7 +43,7 @@ export default function AdminPage() {
   const [nivelCargo, setNivelCargo] = useState('operativo');
   const [orgIdCargo, setOrgIdCargo] = useState('');
   const [tareas, setTareas] = useState([
-    { nombre: '', descripcion: '', criticidad: 'media', nivel: 'operativo' },
+    { id: generarId(), nombre: '', descripcion: '', criticidad: 'media', nivel: 'operativo' },
   ]);
   const [editandoCargoId, setEditandoCargoId] = useState(null);
 
@@ -144,7 +145,7 @@ export default function AdminPage() {
   };
 
   const agregarFilaTarea = () => {
-    setTareas([...tareas, { nombre: '', descripcion: '', criticidad: 'media', nivel: 'operativo' }]);
+    setTareas([...tareas, { id: generarId(), nombre: '', descripcion: '', criticidad: 'media', nivel: 'operativo' }]);
   };
 
   const quitarFilaTarea = (index) => {
@@ -161,7 +162,7 @@ export default function AdminPage() {
     setNombreCargo('');
     setNivelCargo('operativo');
     setOrgIdCargo('');
-    setTareas([{ nombre: '', descripcion: '', criticidad: 'media', nivel: 'operativo' }]);
+    setTareas([{ id: generarId(), nombre: '', descripcion: '', criticidad: 'media', nivel: 'operativo' }]);
     setEditandoCargoId(null);
   };
 
@@ -171,8 +172,8 @@ export default function AdminPage() {
     setOrgIdCargo(cargo.orgId);
     setTareas(
       cargo.tareasCriticas && cargo.tareasCriticas.length > 0
-        ? cargo.tareasCriticas
-        : [{ nombre: '', descripcion: '', criticidad: 'media', nivel: 'operativo' }]
+        ? cargo.tareasCriticas.map((t) => ({ id: t.id || generarId(), ...t }))
+        : [{ id: generarId(), nombre: '', descripcion: '', criticidad: 'media', nivel: 'operativo' }]
     );
     setEditandoCargoId(cargo.id);
     setMensaje('');
@@ -376,7 +377,7 @@ export default function AdminPage() {
               <div>
                 <p className="text-sm text-gray-400 mb-2">Tareas críticas del cargo</p>
                 {tareas.map((t, i) => (
-                  <div key={i} className="grid grid-cols-12 gap-2 mb-2">
+                  <div key={t.id} className="grid grid-cols-12 gap-2 mb-2">
                     <input
                       value={t.nombre}
                       onChange={(e) => actualizarTarea(i, 'nombre', e.target.value)}
