@@ -43,6 +43,7 @@ colaborador: [
       { href: '/diagnostico', titulo: 'Mi diagnóstico', descripcion: 'Cómo haces hoy las tareas de tu cargo.' },
       { href: '/resultado', titulo: 'Mi Índice de Claridad de Rol', descripcion: 'El cruce entre tu mirada y la de tu supervisor.' },
       { href: '/mapa-dominio', titulo: 'Mapa de Dominio', descripcion: 'Tus tareas críticas, agrupadas por nivel.' },
+      { href: '/plan-aprendizaje', titulo: 'Mi Plan de Aprendizaje', descripcion: 'Objetivos y retos, con tu progreso.' },
     ],
   };
 
