@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/hooks/useAuth';
+import VisorInstructivo from '@/components/VisorInstructivo';
 
 const INSIGNIAS = [
   { umbral: 1, nombre: 'Primer paso', icono: '🌱' },
@@ -30,6 +31,9 @@ export default function PlanAprendizajePage() {
   const [objetivos, setObjetivos] = useState([]);
   const [retos, setRetos] = useState([]);
   const [gamificacion, setGamificacion] = useState({ puntos: 0, insignias: [] });
+  const [tareas, setTareas] = useState([]);
+  const [instructivos, setInstructivos] = useState({});
+  const [cargandoInstructivos, setCargandoInstructivos] = useState(true);
 
   useEffect(() => {
     if (!cargando && !usuario) {
@@ -129,13 +133,52 @@ export default function PlanAprendizajePage() {
     };
   }, [usuario, estado]);
 
+  useEffect(() => {
+    if (!usuario || estado !== 'listo' || !usuario.cargoId) return;
+
+    const cargarInstructivos = async () => {
+      const cargoSnap = await getDoc(doc(db, 'cargos', usuario.cargoId));
+      if (!cargoSnap.exists()) {
+        setCargandoInstructivos(false);
+        return;
+      }
+
+      const tareasCriticas = cargoSnap.data().tareasCriticas || [];
+      setTareas(tareasCriticas);
+
+      const resultado = {};
+      await Promise.all(
+        tareasCriticas.map(async (t) => {
+          const snap = await getDoc(
+            doc(db, 'contenidoAprendizaje', `${usuario.cargoId}_${t.id}`)
+          );
+          if (snap.exists() && snap.data().texto) {
+            resultado[t.id] = {
+              texto: snap.data().texto || '',
+              flujo: snap.data().flujo || null,
+            };
+          }
+        })
+      );
+
+      setInstructivos(resultado);
+      setCargandoInstructivos(false);
+    };
+
+    cargarInstructivos();
+  }, [usuario, estado]);
+
   const alternarReto = async (reto) => {
     const nuevoEstado = !reto.completado;
     await updateDoc(doc(db, 'retos', reto.id), { completado: nuevoEstado });
 
-    const completados = retos.filter((r) => (r.id !== reto.id ? r.completado : nuevoEstado)).length;
+    const completados = retos
+      .filter((r) => (r.id !== reto.id ? r.completado : nuevoEstado))
+      .length;
     const puntos = completados * 10;
-    const nuevasInsignias = INSIGNIAS.filter((i) => completados >= i.umbral).map((i) => i.nombre);
+    const nuevasInsignias = INSIGNIAS
+      .filter((i) => completados >= i.umbral)
+      .map((i) => i.nombre);
 
     await setDoc(
       doc(db, 'gamificacion', usuario.uid),
@@ -156,7 +199,7 @@ export default function PlanAprendizajePage() {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center px-4">
         <p className="text-gray-400 text-center max-w-sm">
-          Primero necesitas ver tu Índice de Claridad de Rol antes de generar tu plan de aprendizaje.
+          Primero necesitas ver tu índice de Claridad de Rol antes de generar tu plan de aprendizaje.
         </p>
       </div>
     );
@@ -181,15 +224,20 @@ export default function PlanAprendizajePage() {
   }
 
   const completados = retos.filter((r) => r.completado).length;
+  const tareasConInstructivo = tareas.filter((t) => instructivos[t.id]);
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       <header className="border-b border-gray-800 px-6 py-4">
         <h1 className="font-bold">Tu Plan de Aprendizaje</h1>
-        <p className="text-xs text-gray-500">Construido a partir de tu diagnóstico — es tuyo, ajústalo a tu ritmo.</p>
+        <p className="text-xs text-gray-500">
+          Construido a partir de tu diagnóstico — es tuyo, ajústalo a tu ritmo.
+        </p>
       </header>
 
       <main className="p-6 max-w-2xl space-y-8">
+
+        {/* Gamificación */}
         <div className="flex items-center gap-6 bg-gray-900 border border-gray-800 rounded-lg p-4">
           <div>
             <p className="text-2xl font-bold text-blue-400">{gamificacion.puntos || 0}</p>
@@ -197,19 +245,28 @@ export default function PlanAprendizajePage() {
           </div>
           <div className="flex gap-2 flex-wrap">
             {(gamificacion.insignias || []).map((ins) => (
-              <span key={ins} className="text-xs bg-gray-800 border border-gray-700 rounded-full px-3 py-1">
+              <span
+                key={ins}
+                className="text-xs bg-gray-800 border border-gray-700 rounded-full px-3 py-1"
+              >
                 {INSIGNIAS.find((i) => i.nombre === ins)?.icono} {ins}
               </span>
             ))}
           </div>
         </div>
 
+        {/* Objetivos */}
         {objetivos.length > 0 && (
           <div>
-            <h2 className="text-sm font-semibold text-blue-400 mb-3">Objetivos de aprendizaje</h2>
+            <h2 className="text-sm font-semibold text-blue-400 mb-3">
+              Objetivos de aprendizaje
+            </h2>
             <div className="space-y-2">
               {objetivos.map((o, i) => (
-                <div key={i} className="bg-gray-900 border border-gray-800 rounded-md px-4 py-3 flex items-center justify-between">
+                <div
+                  key={i}
+                  className="bg-gray-900 border border-gray-800 rounded-md px-4 py-3 flex items-center justify-between"
+                >
                   <p className="text-sm">{o.tema}</p>
                   <span
                     className={`text-xs px-2 py-1 rounded-full ${
@@ -228,6 +285,27 @@ export default function PlanAprendizajePage() {
           </div>
         )}
 
+        {/* Instructivos por tarea */}
+        {!cargandoInstructivos && tareasConInstructivo.length > 0 && (
+          <div>
+            <h2 className="text-sm font-semibold text-teal-400 mb-3">
+              Cómo hacer tus tareas críticas
+            </h2>
+            <div className="space-y-6">
+              {tareasConInstructivo.map((t) => (
+                <div key={t.id}>
+                  <p className="text-sm font-medium text-gray-300 mb-2">{t.nombre}</p>
+                  <VisorInstructivo
+                    texto={instructivos[t.id].texto}
+                    flujo={instructivos[t.id].flujo}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Retos */}
         <div>
           <h2 className="text-sm font-semibold text-teal-400 mb-3">
             Retos ({completados}/{retos.length})
@@ -238,14 +316,24 @@ export default function PlanAprendizajePage() {
                 key={r.id}
                 className="flex items-start gap-3 bg-gray-900 border border-gray-800 rounded-md px-4 py-3 cursor-pointer"
               >
-                <input type="checkbox" checked={r.completado} onChange={() => alternarReto(r)} className="mt-1" />
-                <span className={`text-sm ${r.completado ? 'text-gray-500 line-through' : 'text-gray-200'}`}>
+                <input
+                  type="checkbox"
+                  checked={r.completado}
+                  onChange={() => alternarReto(r)}
+                  className="mt-1"
+                />
+                <span
+                  className={`text-sm ${
+                    r.completado ? 'text-gray-500 line-through' : 'text-gray-200'
+                  }`}
+                >
                   {r.descripcion}
                 </span>
               </label>
             ))}
           </div>
         </div>
+
       </main>
     </div>
   );

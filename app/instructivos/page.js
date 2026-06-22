@@ -91,17 +91,40 @@ export default function InstructivosPage() {
   const guardarInstructivo = async (tareaId) => {
     setGuardando((prev) => ({ ...prev, [tareaId]: true }));
 
-    await setDoc(doc(db, 'contenidoAprendizaje', `${cargoSeleccionado.id}_${tareaId}`), {
+    const ref = doc(db, 'contenidoAprendizaje', `${cargoSeleccionado.id}_${tareaId}`);
+    const texto = instructivos[tareaId] || '';
+
+    await setDoc(ref, {
       cargoId: cargoSeleccionado.id,
       tareaId,
-      texto: instructivos[tareaId] || '',
+      texto,
       autorId: usuario.uid,
       autorRol: usuario.rol,
       fecha: serverTimestamp(),
     });
 
+    setMensaje('Instructivo guardado. Generando diagrama visual...');
+
+    try {
+      const res = await fetch('/api/generar-flujo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texto }),
+      });
+
+      if (res.ok) {
+        const { flujo } = await res.json();
+        await setDoc(ref, { flujo }, { merge: true });
+        setMensaje('Instructivo y diagrama guardados.');
+      } else {
+        setMensaje('Instructivo guardado. El diagrama no se pudo generar (vuelve a guardar para reintentar).');
+      }
+    } catch (err) {
+      console.error('Error generando flujo:', err);
+      setMensaje('Instructivo guardado. El diagrama no se pudo generar.');
+    }
+
     setGuardando((prev) => ({ ...prev, [tareaId]: false }));
-    setMensaje('Instructivo guardado.');
   };
 
   if (cargando || cargandoDatos) {
