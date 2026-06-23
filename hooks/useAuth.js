@@ -17,23 +17,30 @@ export function AuthProvider({ children }) {
         setCargando(false);
         return;
       }
-      try {
-        await firebaseUser.getIdToken(true); // fuerza el token antes de leer Firestore
-        const ref = doc(db, 'usuarios', firebaseUser.uid);
-        const snap = await getDoc(ref);
-        if (!snap.exists()) {
+
+      const cargarUsuario = async (reintentos = 0) => {
+        try {
+          const snap = await getDoc(doc(db, 'usuarios', firebaseUser.uid));
+          if (!snap.exists()) {
+            setUsuario(null);
+          } else {
+            setUsuario({ uid: firebaseUser.uid, ...snap.data() });
+          }
+          setCargando(false);
+        } catch (err) {
+          if (err.code === 'permission-denied' && reintentos < 3) {
+            await new Promise((r) => setTimeout(r, 600 * (reintentos + 1)));
+            return cargarUsuario(reintentos + 1);
+          }
+          console.error('Error leyendo usuario de Firestore:', err);
           setUsuario(null);
           setCargando(false);
-          return;
         }
-        setUsuario({ uid: firebaseUser.uid, ...snap.data() });
-        setCargando(false);
-      } catch (err) {
-        console.error('Error leyendo usuario de Firestore:', err);
-        setUsuario(null);
-        setCargando(false);
-      }
+      };
+
+      await cargarUsuario();
     });
+
     return () => unsubscribe();
   }, []);
 
