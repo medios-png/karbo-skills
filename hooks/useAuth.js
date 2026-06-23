@@ -1,5 +1,4 @@
 'use client';
-
 import { useState, useEffect, createContext, useContext } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
@@ -18,17 +17,15 @@ export function AuthProvider({ children }) {
         setCargando(false);
         return;
       }
-
       try {
+        await firebaseUser.getIdToken(true); // fuerza el token antes de leer Firestore
         const ref = doc(db, 'usuarios', firebaseUser.uid);
         const snap = await getDoc(ref);
-
         if (!snap.exists()) {
           setUsuario(null);
           setCargando(false);
           return;
         }
-
         setUsuario({ uid: firebaseUser.uid, ...snap.data() });
         setCargando(false);
       } catch (err) {
@@ -37,7 +34,6 @@ export function AuthProvider({ children }) {
         setCargando(false);
       }
     });
-
     return () => unsubscribe();
   }, []);
 

@@ -12,7 +12,8 @@ import {
   getDocs,
   serverTimestamp,
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '@/lib/firebase';
 import { useAuth } from '@/hooks/useAuth';
 import GrabadorAudio from '@/components/GrabadorAudio';
 
@@ -70,7 +71,21 @@ export default function InstructivosPage() {
     await Promise.all(
       tareas.map(async (t) => {
         const snap = await getDoc(doc(db, 'contenidoAprendizaje', `${cargo.id}_${t.id}`));
-        resultado[t.id] = snap.exists() ? snap.data().texto : '';
+        if (snap.exists()) {
+          resultado[t.id] = {
+            texto: snap.data().texto || '',
+            audioUrl: snap.data().audioUrl || null,
+            audioDesactualizado: snap.data().audioDesactualizado || false,
+            textoGuardado: snap.data().texto || '',
+          };
+        } else {
+          resultado[t.id] = {
+            texto: '',
+            audioUrl: null,
+            audioDesactualizado: false,
+            textoGuardado: '',
+          };
+        }
       })
     );
 
@@ -78,50 +93,95 @@ export default function InstructivosPage() {
   };
 
   const actualizarTexto = (tareaId, texto) => {
-    setInstructivos((prev) => ({ ...prev, [tareaId]: texto }));
+    setInstructivos((prev) => ({
+      ...prev,
+      [tareaId]: { ...prev[tareaId], texto },
+    }));
   };
 
   const agregarTranscripcion = (tareaId, texto) => {
     setInstructivos((prev) => {
-      const actual = prev[tareaId] || '';
-      return { ...prev, [tareaId]: actual ? `${actual} ${texto}` : texto };
+      const actual = prev[tareaId]?.texto || '';
+      return {
+        ...prev,
+        [tareaId]: { ...prev[tareaId], texto: actual ? `${actual} ${texto}` : texto },
+      };
     });
   };
 
   const guardarInstructivo = async (tareaId) => {
     setGuardando((prev) => ({ ...prev, [tareaId]: true }));
 
-    const ref = doc(db, 'contenidoAprendizaje', `${cargoSeleccionado.id}_${tareaId}`);
-    const texto = instructivos[tareaId] || '';
+    const ref_doc = doc(db, 'contenidoAprendizaje', `${cargoSeleccionado.id}_${tareaId}`);
+    const texto = instructivos[tareaId]?.texto || '';
+    const textoAnterior = instructivos[tareaId]?.textoGuardado || '';
+    const audioUrlExistente = instructivos[tareaId]?.audioUrl || null;
+    const textoChanged = texto !== textoAnterior && audioUrlExistente;
 
-    await setDoc(ref, {
+    await setDoc(ref_doc, {
       cargoId: cargoSeleccionado.id,
       tareaId,
       texto,
       autorId: usuario.uid,
       autorRol: usuario.rol,
       fecha: serverTimestamp(),
-    });
+      ...(textoChanged && { audioDesactualizado: true }),
+    }, { merge: true });
 
-    setMensaje('Instructivo guardado. Generando diagrama visual...');
+    setMensaje('Instructivo guardado. Generando diagrama y audio...');
 
+    // Generar flujo
     try {
-      const res = await fetch('/api/generar-flujo', {
+      const resFlujo = await fetch('/api/generar-flujo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texto }),
+      });
+      if (resFlujo.ok) {
+        const { flujo } = await resFlujo.json();
+        await setDoc(ref_doc, { flujo }, { merge: true });
+      }
+    } catch (err) {
+      console.error('Error generando flujo:', err);
+    }
+
+    // Generar audio y subir a Storage
+    try {
+      const resAudio = await fetch('/api/tts-instructivo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ texto }),
       });
 
-      if (res.ok) {
-        const { flujo } = await res.json();
-        await setDoc(ref, { flujo }, { merge: true });
-        setMensaje('Instructivo y diagrama guardados.');
+      if (resAudio.ok) {
+        const blob = await resAudio.blob();
+        const storageRef = ref(storage, `instructivos/${cargoSeleccionado.id}_${tareaId}.mp3`);
+        await uploadBytes(storageRef, blob, { contentType: 'audio/mpeg' });
+        const audioUrl = await getDownloadURL(storageRef);
+
+        await setDoc(ref_doc, {
+          audioUrl,
+          audioGeneradoEn: serverTimestamp(),
+          audioDesactualizado: false,
+        }, { merge: true });
+
+        setInstructivos((prev) => ({
+          ...prev,
+          [tareaId]: {
+            ...prev[tareaId],
+            audioUrl,
+            audioDesactualizado: false,
+            textoGuardado: texto,
+          },
+        }));
+
+        setMensaje('Instructivo, diagrama y audio guardados.');
       } else {
-        setMensaje('Instructivo guardado. El diagrama no se pudo generar (vuelve a guardar para reintentar).');
+        setMensaje('Instructivo y diagrama guardados. El audio no se pudo generar.');
       }
     } catch (err) {
-      console.error('Error generando flujo:', err);
-      setMensaje('Instructivo guardado. El diagrama no se pudo generar.');
+      console.error('Error generando audio:', err);
+      setMensaje('Instructivo y diagrama guardados. El audio no se pudo generar.');
     }
 
     setGuardando((prev) => ({ ...prev, [tareaId]: false }));
@@ -172,28 +232,42 @@ export default function InstructivosPage() {
 
         {cargoSeleccionado && (
           <div className="space-y-6">
-            {(cargoSeleccionado.tareasCriticas || []).map((t) => (
-              <div key={t.id} className="border-b border-gray-800 pb-6">
-                <p className="font-medium mb-2">{t.nombre}</p>
-                <textarea
-                  value={instructivos[t.id] || ''}
-                  onChange={(e) => actualizarTexto(t.id, e.target.value)}
-                  placeholder="¿Cómo se hace bien esta tarea? (texto o graba audio abajo)"
-                  rows={3}
-                  className="w-full bg-gray-900 border border-gray-800 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-                />
-                <div className="mt-2 flex items-center gap-3">
-                  <GrabadorAudio onTranscripcion={(texto) => agregarTranscripcion(t.id, texto)} />
-                  <button
-                    onClick={() => guardarInstructivo(t.id)}
-                    disabled={guardando[t.id]}
-                    className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 px-3 py-1.5 rounded-md text-xs font-medium"
-                  >
-                    {guardando[t.id] ? 'Guardando...' : 'Guardar instructivo'}
-                  </button>
+            {(cargoSeleccionado.tareasCriticas || []).map((t) => {
+              const inst = instructivos[t.id] || {};
+              return (
+                <div key={t.id} className="border-b border-gray-800 pb-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="font-medium">{t.nombre}</p>
+                    {inst.audioUrl && (
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        inst.audioDesactualizado
+                          ? 'bg-amber-950 text-amber-400'
+                          : 'bg-green-950 text-green-400'
+                      }`}>
+                        {inst.audioDesactualizado ? '⚠ Audio desactualizado' : '✓ Audio listo'}
+                      </span>
+                    )}
+                  </div>
+                  <textarea
+                    value={inst.texto || ''}
+                    onChange={(e) => actualizarTexto(t.id, e.target.value)}
+                    placeholder="¿Cómo se hace bien esta tarea? (texto o graba audio abajo)"
+                    rows={3}
+                    className="w-full bg-gray-900 border border-gray-800 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                  />
+                  <div className="mt-2 flex items-center gap-3">
+                    <GrabadorAudio onTranscripcion={(texto) => agregarTranscripcion(t.id, texto)} />
+                    <button
+                      onClick={() => guardarInstructivo(t.id)}
+                      disabled={guardando[t.id]}
+                      className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 px-3 py-1.5 rounded-md text-xs font-medium"
+                    >
+                      {guardando[t.id] ? 'Guardando...' : 'Guardar instructivo'}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </main>

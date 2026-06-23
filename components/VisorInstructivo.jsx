@@ -59,9 +59,7 @@ function buildReactFlowElements(flujo) {
   });
 
   flujo.conexiones.forEach((conn) => {
-    if (conn.origen && conn.destino) {
-      g.setEdge(conn.origen, conn.destino);
-    }
+    if (conn.origen && conn.destino) g.setEdge(conn.origen, conn.destino);
   });
 
   dagre.layout(g);
@@ -94,10 +92,10 @@ function buildReactFlowElements(flujo) {
   return { nodes, edges };
 }
 
-export default function VisorInstructivo({ texto, flujo }) {
+export default function VisorInstructivo({ texto, flujo, audioUrl, audioDesactualizado }) {
   const [pestana, setPestana] = useState('texto');
   const [reproduciendo, setReproduciendo] = useState(false);
-  const [audioUrl, setAudioUrl] = useState(null);
+  const [audioLocalUrl, setAudioLocalUrl] = useState(null);
   const [errorAudio, setErrorAudio] = useState('');
 
   const { nodes: initialNodes, edges: initialEdges } = useMemo(
@@ -108,11 +106,13 @@ export default function VisorInstructivo({ texto, flujo }) {
   const [nodes, , onNodesChange] = useNodesState(initialNodes);
   const [edges, , onEdgesChange] = useEdgesState(initialEdges);
 
+  const urlParaReproducir = audioLocalUrl || audioUrl;
+
   const handleEscuchar = async () => {
     setErrorAudio('');
 
-    if (audioUrl) {
-      const audio = new Audio(audioUrl);
+    if (urlParaReproducir) {
+      const audio = new Audio(urlParaReproducir);
       setReproduciendo(true);
       audio.play();
       audio.onended = () => setReproduciendo(false);
@@ -131,7 +131,7 @@ export default function VisorInstructivo({ texto, flujo }) {
 
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
-      setAudioUrl(url);
+      setAudioLocalUrl(url);
 
       const audio = new Audio(url);
       audio.play();
@@ -141,6 +141,14 @@ export default function VisorInstructivo({ texto, flujo }) {
       setErrorAudio('No se pudo generar el audio. Intenta de nuevo.');
       setReproduciendo(false);
     }
+  };
+
+  const handleDescargar = () => {
+    if (!urlParaReproducir) return;
+    const a = document.createElement('a');
+    a.href = urlParaReproducir;
+    a.download = 'instructivo.mp3';
+    a.click();
   };
 
   const TABS = [
@@ -209,6 +217,11 @@ export default function VisorInstructivo({ texto, flujo }) {
 
       {pestana === 'audio' && (
         <div className="p-6 flex flex-col items-center gap-4 min-h-32">
+          {audioDesactualizado && (
+            <p className="text-xs text-amber-400 text-center">
+              ⚠ El texto del instructivo cambió. El supervisor debe volver a guardarlo para actualizar el audio.
+            </p>
+          )}
           {!texto ? (
             <p className="text-sm text-gray-500 italic">No hay texto para reproducir.</p>
           ) : (
@@ -220,10 +233,18 @@ export default function VisorInstructivo({ texto, flujo }) {
               >
                 {reproduciendo
                   ? '▶ Reproduciendo...'
-                  : audioUrl
+                  : urlParaReproducir
                   ? '▶ Reproducir de nuevo'
                   : '▶ Escuchar instructivo'}
               </button>
+              {urlParaReproducir && (
+                <button
+                  onClick={handleDescargar}
+                  className="text-xs text-gray-400 hover:text-gray-200 underline"
+                >
+                  ⬇ Descargar audio (.mp3)
+                </button>
+              )}
               {errorAudio && <p className="text-xs text-red-400">{errorAudio}</p>}
               <p className="text-xs text-gray-500 text-center">
                 La IA lee el instructivo en voz alta.
