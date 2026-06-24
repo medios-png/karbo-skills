@@ -25,6 +25,12 @@ const NIVELES_DOMINIO = [
   { valor: 5, etiqueta: 'La domina completamente' },
 ];
 
+const TIPO_COLORS = {
+  positiva: 'text-green-400 bg-green-950 border-green-800',
+  negativa: 'text-red-400 bg-red-950 border-red-800',
+  neutra: 'text-gray-400 bg-gray-800 border-gray-700',
+};
+
 export default function DiagnosticoSupervisorPage() {
   const router = useRouter();
   const { usuario, cargando } = useAuth();
@@ -38,6 +44,13 @@ export default function DiagnosticoSupervisorPage() {
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
   const [error, setError] = useState('');
+
+  const [observacionTexto, setObservacionTexto] = useState('');
+  const [clasificando, setClasificando] = useState(false);
+  const [resultadoClasificacion, setResultadoClasificacion] = useState(null);
+  const [tareaManualId, setTareaManualId] = useState('');
+  const [guardandoObservacion, setGuardandoObservacion] = useState(false);
+  const [observacionGuardada, setObservacionGuardada] = useState(false);
 
   useEffect(() => {
     if (!cargando && (!usuario || usuario.rol !== 'supervisor')) {
@@ -63,6 +76,10 @@ export default function DiagnosticoSupervisorPage() {
     setEnviado(false);
     setCargo(null);
     setYaCompletado(null);
+    setObservacionTexto('');
+    setResultadoClasificacion(null);
+    setObservacionGuardada(false);
+    setTareaManualId('');
 
     if (!colaborador.cargoId) return;
 
@@ -151,6 +168,82 @@ export default function DiagnosticoSupervisorPage() {
     setEnviado(true);
   };
 
+  const agregarTranscripcionObservacion = (texto) => {
+    setObservacionTexto((prev) => prev ? `${prev} ${texto}` : texto);
+  };
+
+  const clasificarObservacion = async () => {
+    if (!observacionTexto.trim() || observacionTexto.trim().length < 5) return;
+    setClasificando(true);
+    setResultadoClasificacion(null);
+
+    try {
+      const res = await fetch('/api/clasificar-observacion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          texto: observacionTexto,
+          tareasCriticas: cargo.tareasCriticas || [],
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setResultadoClasificacion(data);
+        if (data.confianzaAlta && data.tareaEncontrada) {
+          setTareaManualId(data.tareaEncontrada.id);
+        } else {
+          setTareaManualId('');
+        }
+      }
+    } catch (err) {
+      console.error('Error clasificando:', err);
+    } finally {
+      setClasificando(false);
+    }
+  };
+
+  const confirmarObservacion = async () => {
+    if (!resultadoClasificacion || !tareaManualId) return;
+    setGuardandoObservacion(true);
+
+    const tareaVinculada = (cargo.tareasCriticas || []).find((t) => t.id === tareaManualId);
+    if (!tareaVinculada) { setGuardandoObservacion(false); return; }
+
+    const { resultado } = resultadoClasificacion;
+
+    await addDoc(collection(db, 'observaciones'), {
+      supervisorId: usuario.uid,
+      colaboradorId: seleccionado.uid,
+      cargoId: seleccionado.cargoId,
+      texto: observacionTexto,
+      tareaCriticaVinculada: tareaVinculada.nombre,
+      tareaId: tareaManualId,
+      tipo: resultado.tipo,
+      etiqueta: resultado.etiqueta,
+      creadaEn: serverTimestamp(),
+      confirmadaPorSupervisor: true,
+    });
+
+    const dominioRef = doc(db, 'dominioTareas', `${seleccionado.uid}_${tareaManualId}_supervisor`);
+    const dominioSnap = await getDoc(dominioRef);
+
+    if (dominioSnap.exists()) {
+      const nivelActual = dominioSnap.data().nivelDominio || 3;
+      let nuevoNivel = nivelActual;
+      if (resultado.tipo === 'positiva') nuevoNivel = Math.min(5, nivelActual + 1);
+      if (resultado.tipo === 'negativa') nuevoNivel = Math.max(1, nivelActual - 1);
+      await setDoc(dominioRef, { nivelDominio: nuevoNivel, ultimaObservacion: serverTimestamp() }, { merge: true });
+    }
+
+    setGuardandoObservacion(false);
+    setObservacionGuardada(true);
+    setObservacionTexto('');
+    setResultadoClasificacion(null);
+    setTareaManualId('');
+    setTimeout(() => setObservacionGuardada(false), 3000);
+  };
+
   if (cargando) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
@@ -162,9 +255,9 @@ export default function DiagnosticoSupervisorPage() {
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       <header className="border-b border-gray-800 px-6 py-4">
-        <h1 className="font-bold">Diagnóstico del Supervisor</h1>
+        <h1 className="font-bold">Panel del Supervisor</h1>
         <p className="text-xs text-gray-500">
-          Esto construye el plan de aprendizaje de tu equipo — no es una evaluación punitiva.
+          Diagnóstico inicial y observaciones de campo de tu equipo.
         </p>
       </header>
 
@@ -203,21 +296,20 @@ export default function DiagnosticoSupervisorPage() {
         )}
 
         {seleccionado && cargo && (yaCompletado || enviado) && (
-          <div className="text-center py-8">
-            <h2 className="text-lg font-bold mb-2">Diagnóstico completado</h2>
-            <p className="text-gray-400">
-              Ya completaste tu observación sobre {seleccionado.nombre || seleccionado.email} para este cargo.
+          <div className="text-center py-6 border-b border-gray-800 mb-8">
+            <p className="text-gray-400 text-sm">
+              Diagnóstico inicial de {seleccionado.nombre || seleccionado.email} ya completado.
             </p>
           </div>
         )}
 
         {seleccionado && cargo && !yaCompletado && !enviado && (
-          <form onSubmit={enviarDiagnostico} className="space-y-8">
+          <form onSubmit={enviarDiagnostico} className="space-y-8 border-b border-gray-800 pb-8 mb-8">
+            <h2 className="text-sm font-semibold text-blue-400">Diagnóstico inicial</h2>
             {(cargo.tareasCriticas || []).map((t) => (
               <div key={t.id} className="border-b border-gray-800 pb-6">
                 <p className="font-medium mb-1">{t.nombre}</p>
                 {t.descripcion && <p className="text-sm text-gray-500 mb-3">{t.descripcion}</p>}
-
                 <p className="text-xs text-gray-400 mb-2">
                   ¿Qué tanto domina {seleccionado.nombre} esta tarea, según lo que observas?
                 </p>
@@ -237,7 +329,6 @@ export default function DiagnosticoSupervisorPage() {
                     </button>
                   ))}
                 </div>
-
                 <textarea
                   value={respuestas[t.id]?.comentario || ''}
                   onChange={(e) => actualizarComentario(t.id, e.target.value)}
@@ -250,16 +341,106 @@ export default function DiagnosticoSupervisorPage() {
                 </div>
               </div>
             ))}
-
             {error && <p className="text-sm text-amber-500">{error}</p>}
-
             <button
               disabled={enviando}
               className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 px-6 py-2.5 rounded-md text-sm font-medium"
             >
-              {enviando ? 'Enviando...' : 'Enviar observación'}
+              {enviando ? 'Enviando...' : 'Enviar diagnóstico'}
             </button>
           </form>
+        )}
+
+        {seleccionado && cargo && (
+          <div>
+            <h2 className="text-sm font-semibold text-teal-400 mb-1">Registrar observación de campo</h2>
+            <p className="text-xs text-gray-500 mb-4">
+              Describe lo que observaste de {seleccionado.nombre || seleccionado.email}. La IA identifica la tarea relacionada.
+            </p>
+
+            {observacionGuardada && !resultadoClasificacion && (
+              <p className="text-sm text-teal-400 mb-4">✓ Observación registrada. Puedes agregar otra.</p>
+            )}
+
+            {!resultadoClasificacion ? (
+              <div className="space-y-3">
+                <textarea
+                  value={observacionTexto}
+                  onChange={(e) => setObservacionTexto(e.target.value)}
+                  placeholder="¿Qué observaste? Ej: 'Tardó mucho procesando la factura, tuvo que pedir ayuda con el sistema'"
+                  rows={3}
+                  className="w-full bg-gray-900 border border-gray-800 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-teal-500"
+                />
+                <div className="flex items-center gap-3">
+                  <GrabadorAudio onTranscripcion={agregarTranscripcionObservacion} />
+                  <button
+                    onClick={clasificarObservacion}
+                    disabled={clasificando || observacionTexto.trim().length < 5}
+                    className="bg-teal-600 hover:bg-teal-700 disabled:opacity-50 px-4 py-2 rounded-md text-xs font-medium"
+                  >
+                    {clasificando ? 'Analizando...' : 'Analizar observación'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 text-sm text-gray-400 italic">
+                  "{observacionTexto}"
+                </div>
+
+                <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
+                  <p className="text-xs text-gray-500 mb-2">La IA identificó lo siguiente — confirma o ajusta:</p>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Tipo:</span>
+                    <span className={`text-xs px-2 py-1 rounded-full border ${TIPO_COLORS[resultadoClasificacion.resultado.tipo] || TIPO_COLORS.neutra}`}>
+                      {resultadoClasificacion.resultado.tipo}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-xs text-gray-500">Etiqueta: </span>
+                    <span className="text-xs text-white">{resultadoClasificacion.resultado.etiqueta}</span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="text-xs text-gray-500">Tarea crítica vinculada:</p>
+                    <select
+                      value={tareaManualId}
+                      onChange={(e) => setTareaManualId(e.target.value)}
+                      className="w-full bg-gray-800 border border-gray-700 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-teal-500"
+                    >
+                      <option value="">— Selecciona una tarea —</option>
+                      {(cargo.tareasCriticas || []).map((t) => (
+                        <option key={t.id} value={t.id}>{t.nombre}</option>
+                      ))}
+                    </select>
+                    {resultadoClasificacion.confianzaAlta ? (
+                      <p className="text-xs text-teal-500">✓ Tarea identificada con confianza alta</p>
+                    ) : (
+                      <p className="text-xs text-amber-500">⚠ La IA no identificó la tarea con certeza — selecciónala manualmente</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={confirmarObservacion}
+                    disabled={guardandoObservacion || !tareaManualId}
+                    className="bg-teal-600 hover:bg-teal-700 disabled:opacity-50 px-4 py-2 rounded-md text-xs font-medium"
+                  >
+                    {guardandoObservacion ? 'Guardando...' : 'Confirmar y guardar'}
+                  </button>
+                  <button
+                    onClick={() => { setResultadoClasificacion(null); setTareaManualId(''); }}
+                    className="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-md text-xs font-medium text-gray-400"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>
