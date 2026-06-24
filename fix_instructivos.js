@@ -1,4 +1,6 @@
-'use client';
+const fs = require('fs');
+
+const contenido = `'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -68,7 +70,7 @@ export default function InstructivosPage() {
 
     await Promise.all(
       tareas.map(async (t) => {
-        const snap = await getDoc(doc(db, 'contenidoAprendizaje', `${cargo.id}_${t.id}`));
+        const snap = await getDoc(doc(db, 'contenidoAprendizaje', \`\${cargo.id}_\${t.id}\`));
         if (snap.exists()) {
           resultado[t.id] = {
             texto: snap.data().texto || '',
@@ -102,7 +104,7 @@ export default function InstructivosPage() {
       const actual = prev[tareaId]?.texto || '';
       return {
         ...prev,
-        [tareaId]: { ...prev[tareaId], texto: actual ? `${actual} ${texto}` : texto },
+        [tareaId]: { ...prev[tareaId], texto: actual ? \`\${actual} \${texto}\` : texto },
       };
     });
   };
@@ -110,7 +112,7 @@ export default function InstructivosPage() {
   const guardarInstructivo = async (tareaId) => {
     setGuardando((prev) => ({ ...prev, [tareaId]: true }));
 
-    const ref_doc = doc(db, 'contenidoAprendizaje', `${cargoSeleccionado.id}_${tareaId}`);
+    const ref_doc = doc(db, 'contenidoAprendizaje', \`\${cargoSeleccionado.id}_\${tareaId}\`);
     const texto = instructivos[tareaId]?.texto || '';
     const textoAnterior = instructivos[tareaId]?.textoGuardado || '';
     const audioExistente = instructivos[tareaId]?.audioBase64 || null;
@@ -210,11 +212,11 @@ export default function InstructivosPage() {
                 <button
                   key={c.id}
                   onClick={() => seleccionarCargo(c)}
-                  className={`px-3 py-2 rounded-md text-sm border ${
+                  className={\`px-3 py-2 rounded-md text-sm border \${
                     cargoSeleccionado?.id === c.id
                       ? 'bg-blue-600 border-blue-600 text-white'
                       : 'bg-gray-900 border-gray-800 text-gray-300 hover:border-gray-600'
-                  }`}
+                  }\`}
                 >
                   {c.nombre}
                 </button>
@@ -232,11 +234,11 @@ export default function InstructivosPage() {
                   <div className="flex items-center justify-between mb-2">
                     <p className="font-medium">{t.nombre}</p>
                     {inst.audioBase64 && (
-                      <span className={`text-xs px-2 py-1 rounded-full ${
+                      <span className={\`text-xs px-2 py-1 rounded-full \${
                         inst.audioDesactualizado
                           ? 'bg-amber-950 text-amber-400'
                           : 'bg-green-950 text-green-400'
-                      }`}>
+                      }\`}>
                         {inst.audioDesactualizado ? '⚠ Audio desactualizado' : '✓ Audio listo'}
                       </span>
                     )}
@@ -266,4 +268,7 @@ export default function InstructivosPage() {
       </main>
     </div>
   );
-}
+}`;
+
+fs.writeFileSync('app/instructivos/page.js', contenido, 'utf8');
+console.log('Archivo escrito. Líneas:', contenido.split('\n').length);
