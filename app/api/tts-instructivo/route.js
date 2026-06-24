@@ -54,13 +54,9 @@ export async function POST(request) {
     );
 
     const audioFinal = Buffer.concat(buffers);
+    const base64 = audioFinal.toString('base64');
 
-    return new NextResponse(audioFinal, {
-      headers: {
-        'Content-Type': 'audio/mpeg',
-        'Content-Length': audioFinal.length.toString(),
-      },
-    });
+    return NextResponse.json({ base64 });
   } catch (error) {
     console.error('Error TTS:', error);
     return NextResponse.json({ error: 'Error generando audio' }, { status: 500 });

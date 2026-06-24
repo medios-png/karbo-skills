@@ -1,0 +1,1 @@
+[{"origin":["http://localhost:6589","https://karbo-skills.vercel.app"],"method":["GET","POST","PUT","DELETE","OPTIONS"],"responseHeader":["Content-Type","Authorization"],"maxAgeSeconds":3600}]

@@ -156,6 +156,8 @@ export default function PlanAprendizajePage() {
             resultado[t.id] = {
               texto: snap.data().texto || '',
               flujo: snap.data().flujo || null,
+              audioBase64: snap.data().audioBase64 || null,
+              audioDesactualizado: snap.data().audioDesactualizado || false,
             };
           }
         })
@@ -237,7 +239,6 @@ export default function PlanAprendizajePage() {
 
       <main className="p-6 max-w-2xl space-y-8">
 
-        {/* Gamificación */}
         <div className="flex items-center gap-6 bg-gray-900 border border-gray-800 rounded-lg p-4">
           <div>
             <p className="text-2xl font-bold text-blue-400">{gamificacion.puntos || 0}</p>
@@ -255,7 +256,6 @@ export default function PlanAprendizajePage() {
           </div>
         </div>
 
-        {/* Objetivos */}
         {objetivos.length > 0 && (
           <div>
             <h2 className="text-sm font-semibold text-blue-400 mb-3">
@@ -285,7 +285,6 @@ export default function PlanAprendizajePage() {
           </div>
         )}
 
-        {/* Instructivos por tarea */}
         {!cargandoInstructivos && tareasConInstructivo.length > 0 && (
           <div>
             <h2 className="text-sm font-semibold text-teal-400 mb-3">
@@ -298,6 +297,8 @@ export default function PlanAprendizajePage() {
                   <VisorInstructivo
                     texto={instructivos[t.id].texto}
                     flujo={instructivos[t.id].flujo}
+                    audioBase64={instructivos[t.id].audioBase64}
+                    audioDesactualizado={instructivos[t.id].audioDesactualizado}
                   />
                 </div>
               ))}
@@ -305,7 +306,6 @@ export default function PlanAprendizajePage() {
           </div>
         )}
 
-        {/* Retos */}
         <div>
           <h2 className="text-sm font-semibold text-teal-400 mb-3">
             Retos ({completados}/{retos.length})
