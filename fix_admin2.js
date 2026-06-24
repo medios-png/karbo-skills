@@ -1,4 +1,6 @@
-'use client';
+const fs = require('fs');
+
+const contenido = `'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -235,9 +237,9 @@ export default function AdminPage() {
           <button
             key={t}
             onClick={() => { setTab(t); setMensaje(''); }}
-            className={`px-4 py-3 text-sm capitalize border-b-2 transition ${
+            className={\`px-4 py-3 text-sm capitalize border-b-2 transition \${
               tab === t ? 'border-blue-500 text-white' : 'border-transparent text-gray-500 hover:text-gray-300'
-            }`}
+            }\`}
           >
             {t}
           </button>
@@ -438,4 +440,7 @@ export default function AdminPage() {
       </main>
     </div>
   );
-}
+}`;
+
+fs.writeFileSync('app/admin/page.js', contenido, 'utf8');
+console.log('Archivo escrito. Líneas:', contenido.split('\\n').length);
