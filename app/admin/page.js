@@ -90,7 +90,7 @@ export default function AdminPage() {
 
   const limpiarFormularioOrg = () => { setNombreOrg(''); setEditandoOrgId(null); };
 
-  const iniciarEdicionOrg = (org) => { setNombreOrg(org.nombre); setEditandoOrgId(org.id); setMensaje(''); };
+  const iniciarEdicionOrg = (org) => { setNombreOrg(org.nombre || ''); setEditandoOrgId(org.id); setMensaje(''); };
 
   const guardarOrganizacion = async (e) => {
     e.preventDefault();
@@ -137,7 +137,7 @@ export default function AdminPage() {
   };
 
   const iniciarEdicionProyecto = (p) => {
-    setNombreProyecto(p.nombre);
+    setNombreProyecto(p.nombre || '');
     setDescripcionProyecto(p.descripcion || '');
     setEditandoProyectoId(p.id);
     setMensaje('');
@@ -145,7 +145,7 @@ export default function AdminPage() {
 
   const limpiarFormularioEquipo = () => { setNombreEquipo(''); setOrgIdEquipo(''); setSupervisorIdEquipo(''); setEditandoEquipoId(null); };
 
-  const iniciarEdicionEquipo = (eq) => { setNombreEquipo(eq.nombre); setOrgIdEquipo(eq.orgId); setSupervisorIdEquipo(eq.supervisorId || ''); setEditandoEquipoId(eq.id); setMensaje(''); };
+  const iniciarEdicionEquipo = (eq) => { setNombreEquipo(eq.nombre || ''); setOrgIdEquipo(eq.orgId || ''); setSupervisorIdEquipo(eq.supervisorId || ''); setEditandoEquipoId(eq.id); setMensaje(''); };
 
   const guardarEquipo = async (e) => {
     e.preventDefault();
@@ -182,7 +182,7 @@ export default function AdminPage() {
   };
 
   const iniciarEdicionCargo = (cargo) => {
-    setNombreCargo(cargo.nombre); setNivelCargo(cargo.nivel); setOrgIdCargo(cargo.orgId);
+    setNombreCargo(cargo.nombre || ''); setNivelCargo(cargo.nivel || 'operativo'); setOrgIdCargo(cargo.orgId || '');
     setTareas(cargo.tareasCriticas && cargo.tareasCriticas.length > 0
       ? cargo.tareasCriticas.map((t) => ({ id: t.id || generarId(), ...t }))
       : [{ id: generarId(), nombre: '', descripcion: '', criticidad: 'media', nivel: 'operativo' }]);
