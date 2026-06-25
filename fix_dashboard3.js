@@ -1,4 +1,8 @@
-'use client';
+const fs = require('fs');
+
+const contenido = fs.readFileSync('app/dashboard/page.js', 'utf8');
+
+const nuevo = `'use client';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -7,15 +11,15 @@ import { auth } from '@/lib/firebase';
 import { useAuth } from '@/hooks/useAuth';
 
 const MODULOS = {
-  '/admin':                  { icono: '⚙️', bg: '#1a1a2e' },
-  '/instructivos':           { icono: '📋', bg: '#1a2a3f' },
-  '/diagnostico-supervisor': { icono: '🔍', bg: '#0f2a22' },
-  '/revision-mensual':       { icono: '📅', bg: '#2a1f0a' },
-  '/diagnostico':            { icono: '🧭', bg: '#1a2a3f' },
-  '/resultado':              { icono: '📊', bg: '#0f2a22' },
-  '/mapa-dominio':           { icono: '🗺️', bg: '#1e1a3a' },
-  '/plan-aprendizaje':       { icono: '🎯', bg: '#0f2210' },
-  '/preguntas':              { icono: '🗣️', bg: '#2a1f0a' },
+  '/admin':                  { icono: '\u2699\uFE0F', bg: '#1a1a2e' },
+  '/instructivos':           { icono: '\uD83D\uDCCB', bg: '#1a2a3f' },
+  '/diagnostico-supervisor': { icono: '\uD83D\uDD0D', bg: '#0f2a22' },
+  '/revision-mensual':       { icono: '\uD83D\uDCC5', bg: '#2a1f0a' },
+  '/diagnostico':            { icono: '\uD83E\uDDED', bg: '#1a2a3f' },
+  '/resultado':              { icono: '\uD83D\uDCCA', bg: '#0f2a22' },
+  '/mapa-dominio':           { icono: '\uD83D\uDDFA\uFE0F', bg: '#1e1a3a' },
+  '/plan-aprendizaje':       { icono: '\uD83C\uDFAF', bg: '#0f2210' },
+  '/preguntas':              { icono: '\uD83D\uDDE3\uFE0F', bg: '#2a1f0a' },
 };
 
 export default function DashboardPage() {
@@ -116,4 +120,7 @@ export default function DashboardPage() {
       </main>
     </div>
   );
-}
+}`;
+
+fs.writeFileSync('app/dashboard/page.js', nuevo, 'utf8');
+console.log('Dashboard escrito. Lineas:', nuevo.split('\n').length);
