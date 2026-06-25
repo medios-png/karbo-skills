@@ -9,8 +9,6 @@ import {
   updateDoc,
   onSnapshot,
   serverTimestamp,
-  orderBy,
-  query,
   getDocs,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -62,7 +60,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     const unsubOrg = onSnapshot(
-      query(collection(db, 'organizaciones'), orderBy('fechaCreacion', 'desc')),
+      collection(db, 'organizaciones'),
       (snap) => setOrganizaciones(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
     );
     const unsubEquipos = onSnapshot(collection(db, 'equipos'), (snap) =>
@@ -250,12 +248,9 @@ export default function AdminPage() {
         {tab === 'organizaciones' && (
           <div>
             <form onSubmit={guardarOrganizacion} className="flex gap-2 mb-6">
-              <input
-                value={nombreOrg}
-                onChange={(e) => setNombreOrg(e.target.value)}
+              <input value={nombreOrg} onChange={(e) => setNombreOrg(e.target.value)}
                 placeholder="Nombre de la organización"
-                className="flex-1 bg-gray-900 border border-gray-800 rounded-md px-3 py-2 focus:outline-none focus:border-blue-500"
-              />
+                className="flex-1 bg-gray-900 border border-gray-800 rounded-md px-3 py-2 focus:outline-none focus:border-blue-500" />
               <button disabled={guardando} className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 px-4 py-2 rounded-md text-sm font-medium">
                 {editandoOrgId ? 'Guardar' : 'Crear'}
               </button>
@@ -268,10 +263,7 @@ export default function AdminPage() {
             <div className="space-y-2">
               {organizaciones.map((org) => (
                 <div key={org.id} className="bg-gray-900 border border-gray-800 rounded-md px-4 py-3 flex items-center justify-between">
-                  <div>
-                    {org.nombre}
-                    <span className="text-xs text-gray-500 ml-2">{org.id}</span>
-                  </div>
+                  <div>{org.nombre}<span className="text-xs text-gray-500 ml-2">{org.id}</span></div>
                   <button onClick={() => iniciarEdicionOrg(org)} className="text-sm text-blue-400 hover:text-blue-300">Editar</button>
                 </div>
               ))}
@@ -283,45 +275,30 @@ export default function AdminPage() {
           <div>
             <div className="mb-6">
               <p className="text-sm text-gray-400 mb-2">Selecciona una organización:</p>
-              <select
-                value={orgIdProyecto}
-                onChange={(e) => { setOrgIdProyecto(e.target.value); limpiarFormularioProyecto(); }}
-                className="w-full bg-gray-900 border border-gray-800 rounded-md px-3 py-2 focus:outline-none focus:border-blue-500 mb-4"
-              >
+              <select value={orgIdProyecto} onChange={(e) => { setOrgIdProyecto(e.target.value); limpiarFormularioProyecto(); }}
+                className="w-full bg-gray-900 border border-gray-800 rounded-md px-3 py-2 focus:outline-none focus:border-blue-500 mb-4">
                 <option value="">— Selecciona —</option>
-                {organizaciones.map((org) => (
-                  <option key={org.id} value={org.id}>{org.nombre}</option>
-                ))}
+                {organizaciones.map((org) => (<option key={org.id} value={org.id}>{org.nombre}</option>))}
               </select>
             </div>
-
             {orgIdProyecto && (
               <>
                 <form onSubmit={guardarProyecto} className="space-y-3 mb-6">
-                  <input
-                    value={nombreProyecto}
-                    onChange={(e) => setNombreProyecto(e.target.value)}
+                  <input value={nombreProyecto} onChange={(e) => setNombreProyecto(e.target.value)}
                     placeholder="Nombre del proyecto (ej: Sede Norte, Piloto Q3)"
-                    className="w-full bg-gray-900 border border-gray-800 rounded-md px-3 py-2 focus:outline-none focus:border-blue-500"
-                  />
-                  <input
-                    value={descripcionProyecto}
-                    onChange={(e) => setDescripcionProyecto(e.target.value)}
+                    className="w-full bg-gray-900 border border-gray-800 rounded-md px-3 py-2 focus:outline-none focus:border-blue-500" />
+                  <input value={descripcionProyecto} onChange={(e) => setDescripcionProyecto(e.target.value)}
                     placeholder="Descripción (opcional)"
-                    className="w-full bg-gray-900 border border-gray-800 rounded-md px-3 py-2 focus:outline-none focus:border-blue-500"
-                  />
+                    className="w-full bg-gray-900 border border-gray-800 rounded-md px-3 py-2 focus:outline-none focus:border-blue-500" />
                   <div className="flex gap-2">
                     <button disabled={guardando} className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 px-4 py-2 rounded-md text-sm font-medium">
                       {editandoProyectoId ? 'Guardar cambios' : 'Crear proyecto'}
                     </button>
                     {editandoProyectoId && (
-                      <button type="button" onClick={limpiarFormularioProyecto} className="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-md text-sm font-medium">
-                        Cancelar
-                      </button>
+                      <button type="button" onClick={limpiarFormularioProyecto} className="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-md text-sm font-medium">Cancelar</button>
                     )}
                   </div>
                 </form>
-
                 <div className="space-y-2">
                   {proyectos.length === 0 ? (
                     <p className="text-gray-500 text-sm">No hay proyectos todavía para esta organización.</p>
